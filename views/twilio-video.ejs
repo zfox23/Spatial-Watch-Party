@@ -83,7 +83,7 @@
             document.getElementById(participant.sid).remove();
 
             providedUserIDsToParticipantVideoContainerMap.delete(participant.identity);
-            let idx = allUserData.find((element) => { return element.providedUserID === participant.identity; })
+            let idx = allUserData.findIndex((element) => { return element.providedUserID === participant.identity; })
             if (idx > -1) {
                 allUserData.splice(idx, 1);
             }
@@ -101,7 +101,7 @@
 
     function disconnectFromVideoService() {
         providedUserIDsToParticipantVideoContainerMap.delete(myProvidedUserID);
-        let idx = allUserData.find((element) => { return element.providedUserID === myProvidedUserID; })
+        let idx = allUserData.findIndex((element) => { return element.providedUserID === myProvidedUserID; })
         if (idx > -1) {
             allUserData.splice(idx, 1);
         }

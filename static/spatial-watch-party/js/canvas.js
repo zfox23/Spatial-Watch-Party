@@ -44,7 +44,6 @@ function updateCanvas() {
     ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
     ctx.font = CIRCLE_LABEL_FONT;
     ctx.fillStyle = CIRCLE_LABEL_COLOR_HEX;
-    ctx.textAlign = "center";
 
     for (const circleInfo of CIRCLE_INFO) {
         ctx.strokeStyle = circleInfo.color;
@@ -53,7 +52,13 @@ function updateCanvas() {
         ctx.beginPath();
         ctx.arc(myPositionInCanvasSpace.x, myPositionInCanvasSpace.y, circleRadiusPX, 0, 2 * Math.PI);
         ctx.stroke();
+        ctx.textAlign = "center";
         ctx.fillText(`${circleRadiusM}m`, myPositionInCanvasSpace.x, myPositionInCanvasSpace.y - circleRadiusPX + CIRCLE_LABEL_PADDING_PX);
+        ctx.fillText(`${circleRadiusM}m`, myPositionInCanvasSpace.x, myPositionInCanvasSpace.y + circleRadiusPX - CIRCLE_LABEL_PADDING_PX);
+        ctx.textAlign = "start";
+        ctx.fillText(`${circleRadiusM}m`, myPositionInCanvasSpace.x - circleRadiusPX + CIRCLE_LABEL_PADDING_PX, myPositionInCanvasSpace.y);
+        ctx.textAlign = "end";
+        ctx.fillText(`${circleRadiusM}m`, myPositionInCanvasSpace.x + circleRadiusPX - CIRCLE_LABEL_PADDING_PX, myPositionInCanvasSpace.y);
     }
 }
 
