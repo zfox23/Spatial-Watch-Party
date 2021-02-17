@@ -18,6 +18,10 @@ const EXPRESS_PORT = 8080;
 app.set('view engine', 'ejs');
 app.use(express.static('static'))
 
+function uppercaseFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 async function generateHiFiJWT(userID, spaceID, isAdmin) {
     let hiFiJWT;
     try {
@@ -70,7 +74,7 @@ function generateTwilioAccessToken(providedUserID, spaceName) {
 
 let spaceNameToIDMap = new Map();
 app.get('/spatial-watch-party', async (req, res) => {
-    let spaceName = auth.TWILIO_ROOM_NAME;
+    let spaceName = req.query.room || auth.TWILIO_ROOM_NAME;
 
     let spaceID;
     if (spaceNameToIDMap.has(spaceName)) {
@@ -96,7 +100,7 @@ app.get('/spatial-watch-party', async (req, res) => {
 
     console.log(`The HiFi Space ID associated with Space Name \`${spaceName}\` is \`${spaceID}\``);
 
-    let providedUserID = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]}-${NOUNS[Math.floor(Math.random() * NOUNS.length)]}${Math.floor(Math.random() * Math.floor(1000))}`;
+    let providedUserID = `${uppercaseFirstLetter(ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)])}${uppercaseFirstLetter(NOUNS[Math.floor(Math.random() * NOUNS.length)])}${Math.floor(Math.random() * Math.floor(1000))}`;
     let hiFiJWT = await generateHiFiJWT(providedUserID, spaceID, false);
     let twilioJWT = generateTwilioAccessToken(providedUserID, spaceName);
     res.render('index', { providedUserID, hiFiJWT, twilioJWT, spaceName });
@@ -125,7 +129,12 @@ io.sockets.on("error", (e) => {
     console.error(e);
 });
 
-function onWatchNewVideo(newVideoURL) {
+function onWatchNewVideo(socket, newVideoURL, spaceName) {
+    if (!spaceInfo[spaceName]) {
+        console.error(`In \`onWatchNewVideo()\`, no \`spaceInfo["${spaceName}"]\`!`);
+        return;
+    }
+
     let url = new URL(newVideoURL);
 
     let youTubeVideoID;
@@ -137,75 +146,110 @@ function onWatchNewVideo(newVideoURL) {
     }
 
     if (youTubeVideoID) {
-        currentQueuedVideoURL = newVideoURL;
-        console.log(`Emitting \`watchNewYouTubeVideo\` with Video ID \`${youTubeVideoID}\`...`);
-        io.emit("watchNewYouTubeVideo", youTubeVideoID, currentVideoSeekTime);
+        spaceInfo[spaceName].currentQueuedVideoURL = newVideoURL;
+        console.log(`Emitting \`watchNewYouTubeVideo\` with Video ID \`${youTubeVideoID}\` to all users in ${spaceName}...`);
+
+        io.sockets.in(spaceName).emit("watchNewYouTubeVideo", youTubeVideoID, spaceInfo[spaceName].currentVideoSeekTime);
     }
 }
 
-let suppliedUserIDToSpaceNameMap = new Map();
-let currentQueuedVideoURL;
-let currentVideoSeekTime;
-let currentVideoIsPlaying = false;
-let currentPlayerState;
+let spaceInfo = {};
 io.sockets.on("connection", (socket) => {
-    socket.on("addWatcher", (suppliedUserID, spaceName) => {
-        console.log(`Adding watcher with ID \`${suppliedUserID}\` to space named \`${spaceName}\`.`);
-        suppliedUserIDToSpaceNameMap.set(suppliedUserID, spaceName);
+    socket.on("addWatcher", (providedUserID, spaceName) => {
+        console.log(`In ${spaceName}, adding watcher with ID \`${providedUserID}\`.`);
+        socket.join(spaceName);
 
-        if (currentQueuedVideoURL) {
-            onWatchNewVideo(currentQueuedVideoURL);
+        if (!spaceInfo[spaceName]) {
+            spaceInfo[spaceName] = {
+                watcherProvidedUserIDToSocketIDMap: new Map(),
+                currentQueuedVideoURL: undefined,
+                currentVideoSeekTime: undefined,
+                currentPlayerState: undefined,
+            };
+        }
+
+        spaceInfo[spaceName].watcherProvidedUserIDToSocketIDMap.set(providedUserID, socket.id);
+
+        if (spaceInfo[spaceName].currentQueuedVideoURL) {
+            onWatchNewVideo(socket, spaceInfo[spaceName].currentQueuedVideoURL, spaceName);
         }
     });
 
-    socket.on("removeWatcher", (suppliedUserID) => {
-        if (suppliedUserIDToSpaceNameMap.has(suppliedUserID)) {
-            suppliedUserIDToSpaceNameMap.delete(suppliedUserID);
+    socket.on("removeWatcher", (providedUserID, spaceName) => {
+        if (!spaceInfo[spaceName]) {
+            return;
         }
 
-        if (suppliedUserIDToSpaceNameMap.size === 0) {
-            currentQueuedVideoURL = undefined;
-            currentVideoSeekTime = undefined;
-            currentVideoIsPlaying = false;
-            currentPlayerState = undefined;
+        console.log(`In ${spaceName}, removing watcher with ID \`${providedUserID}\`.`);
+
+        spaceInfo[spaceName].watcherProvidedUserIDToSocketIDMap.delete(providedUserID);
+
+        if (spaceInfo[spaceName].watcherProvidedUserIDToSocketIDMap.size === 0) {
+            delete spaceInfo[spaceName];
         }
     });
 
-    socket.on("enqueueNewVideo", (newVideoURL) => {
-        currentVideoSeekTime = 0;
-        currentVideoIsPlaying = true;
-        onWatchNewVideo(newVideoURL);
+    socket.on("enqueueNewVideo", (providedUserID, newVideoURL, spaceName) => {
+        if (!spaceInfo[spaceName]) {
+            return;
+        }
+
+        spaceInfo[spaceName].currentVideoSeekTime = 0;
+
+        console.log(`In ${spaceName}, \`${providedUserID}\` requested that a new video be played with URL \`${newVideoURL}\`.`);
+
+        onWatchNewVideo(socket, newVideoURL, spaceName);
     });
 
-    socket.on("requestVideoSeek", (suppliedUserID, seekTimeSeconds) => {
-        currentVideoSeekTime = seekTimeSeconds;
-        socket.broadcast.emit("videoSeek", suppliedUserID, currentVideoSeekTime);
+    socket.on("requestVideoSeek", (providedUserID, seekTimeSeconds, spaceName) => {
+        if (!spaceInfo[spaceName]) {
+            return;
+        }
+        
+        spaceInfo[spaceName].currentVideoSeekTime = seekTimeSeconds;
+
+        console.log(`In ${spaceName}, \`${providedUserID}\` requested that the video be seeked to ${spaceInfo[spaceName].currentVideoSeekTime}s.`);
+        
+        io.sockets.in(spaceName).emit("videoSeek", providedUserID, spaceInfo[spaceName].currentVideoSeekTime);
     });
 
-    socket.on("setSeekTime", (seekTimeSeconds) => {
-        currentVideoSeekTime = seekTimeSeconds;
+    socket.on("setSeekTime", (providedUserID, seekTimeSeconds, spaceName) => {
+        if (!spaceInfo[spaceName]) {
+            return;
+        }
+
+        spaceInfo[spaceName].currentVideoSeekTime = seekTimeSeconds;
     });
 
-    socket.on("newPlayerState", (suppliedUserID, newPlayerState, seekTimeSeconds) => {
-        if (!(newPlayerState === 1 || newPlayerState === 2) || currentPlayerState === newPlayerState) {
+    socket.on("newPlayerState", (providedUserID, newPlayerState, seekTimeSeconds, spaceName) => {
+        if (!spaceInfo[spaceName]) {
+            return;
+        }
+
+        if (!(newPlayerState === 1 || newPlayerState === 2) || spaceInfo[spaceName].currentPlayerState === newPlayerState) {
             return;
         }
         
         if (newPlayerState === 2) { // YT.PlayerState.PAUSED
-            currentVideoIsPlaying = false;
-            socket.broadcast.emit("videoPause", suppliedUserID, seekTimeSeconds);
+            console.log(`In ${spaceName}, \`${providedUserID}\` requested that the video be paused at ${seekTimeSeconds}s.`);
+            socket.broadcast.to(spaceName).emit("videoPause", providedUserID, seekTimeSeconds);
         } else if (newPlayerState === 1) { // YT.PlayerState.PLAYING
-            currentVideoIsPlaying = true;
-            socket.broadcast.emit("videoPlay", suppliedUserID, seekTimeSeconds);
+            console.log(`In ${spaceName}, \`${providedUserID}\` requested that the video be played starting at ${seekTimeSeconds}s.`);
+            socket.broadcast.to(spaceName).emit("videoPlay", providedUserID, seekTimeSeconds);
         }
 
-        currentPlayerState = newPlayerState;
+        spaceInfo[spaceName].currentPlayerState = newPlayerState;
     });
 
-    socket.on("stopVideo", (providedUserID) => {
-        currentVideoSeekTime = undefined;
-        currentQueuedVideoURL = undefined;
-        io.emit("stopVideoRequested", providedUserID);
+    socket.on("stopVideo", (providedUserID, spaceName) => {
+        if (!spaceInfo[spaceName]) {
+            return;
+        }
+
+        spaceInfo[spaceName].currentVideoSeekTime = undefined;
+        spaceInfo[spaceName].currentQueuedVideoURL = undefined;
+        console.log(`In ${spaceName}, \`${providedUserID}\` requested that the video be stopped.`);
+        io.sockets.in(spaceName).emit("stopVideoRequested", providedUserID);
     });
 });
 

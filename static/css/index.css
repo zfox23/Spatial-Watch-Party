@@ -8,12 +8,6 @@ p {
     margin: 0;
 }
 
-button {
-    width: 200px;
-    height: 100%;
-    margin: 0;
-}
-
 .mainCanvas {
     position: fixed;
     top: 0;
@@ -43,6 +37,60 @@ button {
     flex-direction: column;
 }
 
+.description {
+    margin: 0 12px;
+}
+
+.connectDisconnectButton {
+    width: 200px;
+    height: 100%;
+    margin: 0 12px;
+}
+
+.toggleInputMuteButton,
+.toggleOutputMuteButton {
+    width: 40px;
+    height: 40px;
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center center;
+    margin: 0 12px;
+}
+
+.toggleInputMuteButton:hover,
+.toggleOutputMuteButton:hover {
+    cursor: pointer;
+}
+
+.toggleInputMuteButton {
+    background-image: url('/images/white-mic.svg');
+}
+
+.toggleInputMuteButton--muted {
+    background-image: url('/images/red-mic-with-cross.svg');
+}
+
+.toggleInputMuteButton--disabled {
+    background-image: url('/images/grey-mic.svg');
+}
+
+.toggleOutputMuteButton {
+    background-image: url('/images/white-headphones.svg');
+}
+
+.toggleOutputMuteButton--muted {
+    background-image: url('/images/red-headphones-with-x.svg');
+}
+
+.videoURLInput {
+    flex: 1 0 auto;
+    max-width: 480px;
+    height: 26px;
+    font-size: 24px;
+    line-height: 24px;
+    margin: 0 12px;
+}
+
 .allVideosContainer {
     width: 100%;
     height: calc(100vh - 40px - 20px);
@@ -67,7 +115,7 @@ button {
 
 .participantVideoContainer--mine {
     height: calc(216px + 40px);
-    z-index: 30;
+    z-index: 20;
 }
 
 .videoTitleBar {
@@ -80,14 +128,15 @@ button {
 }
 
 .videoTitleBar--YouTube {
-    background-color: #FF0000;
+    background-color: #7f0000;
 }
 
 .videoTitleBar:hover {
     cursor: move;
 }
 
-.closeStreamingVideoButton {
+.closeStreamingVideoButton,
+.maximizeStreamingVideoButton {
     height: 40px;
     width: 40px;
     line-height: 40px;
@@ -96,7 +145,8 @@ button {
     text-align: center;
 }
 
-.closeStreamingVideoButton:hover {
+.closeStreamingVideoButton:hover,
+.maximizeStreamingVideoButton:hover {
     cursor: pointer;
 }
 
@@ -123,7 +173,14 @@ button {
     display: flex;
     flex-direction: column;
     background-color: black;
-    z-index: 20;
+    z-index: 30;
+}
+
+.streamingVideoPlayerContainer--maximized {
+    top: 60px !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: calc(100% - 60px);
 }
 
 .youTubePlayerElement {

@@ -179,7 +179,8 @@
         // Disable the Connect button after the user clicks it so we don't double-connect.
         connectDisconnectButton.disabled = true;
         connectDisconnectButton.innerHTML = `Connecting...`;
-        toggleInputMuteButton.disabled = true;
+        toggleInputMuteButton.classList.add("toggleInputMuteButton--disabled");
+        videoURLInput.disabled = true;
 
         // Get the audio media stream associated with the user's default audio input device.
         let audioMediaStream;
@@ -217,7 +218,8 @@
         } catch (e) {
             console.error(`Error connecting to High Fidelity:\n${JSON.stringify(e)}`);
             connectDisconnectButton.disabled = false;
-            toggleInputMuteButton.disabled = true;
+            toggleInputMuteButton.classList.add("toggleInputMuteButton--disabled");
+            videoURLInput.disabled = true;
             connectDisconnectButton.innerHTML = `Connection error. Retry?`;
             return;
         }
@@ -241,7 +243,8 @@
         connectDisconnectButton.addEventListener("click", disconnectFromAll);
         connectDisconnectButton.innerHTML = `Disconnect`;
         connectDisconnectButton.disabled = false;
-        toggleInputMuteButton.disabled = false;
+        toggleInputMuteButton.classList.remove("toggleInputMuteButton--disabled");
+        videoURLInput.disabled = false;
 
         // Set the `srcObject` on our `audio` DOM element to the final, mixed audio stream from the High Fidelity Audio API Server.
         outputAudioEl.srcObject = hifiCommunicator.getOutputAudioMediaStream();
@@ -266,16 +269,27 @@
         if (!hifiCommunicator) {
             return;
         }
+
         if (await hifiCommunicator.setInputAudioMuted(!isMuted)) {
             isMuted = !isMuted;
-            toggleInputMuteButton.innerHTML = `Toggle Mute (currently ${isMuted ? "muted" : "unmuted"})`;
+
+            if (isMuted) {
+                toggleInputMuteButton.classList.add("toggleInputMuteButton--muted");
+            } else {
+                toggleInputMuteButton.classList.remove("toggleInputMuteButton--muted");
+            }
         }
     }
 
     function toggleOutputMute() {
         outputAudioEl.muted = !outputAudioEl.muted;
         console.log(`Set output mute status to \`${outputAudioEl.muted}\``);
-        toggleOutputMuteButton.innerHTML = `Toggle Output Mute (currently ${outputAudioEl.muted ? "muted" : "unmuted"})`;
+
+        if (outputAudioEl.muted) {
+            toggleOutputMuteButton.classList.add("toggleOutputMuteButton--muted");
+        } else {
+            toggleOutputMuteButton.classList.remove("toggleOutputMuteButton--muted");
+        }
     }
 
     function disconnectFromAll() {
@@ -292,8 +306,10 @@
         connectDisconnectButton.disabled = false;
         connectDisconnectButton.innerHTML = `Connect`;
 
-        toggleInputMuteButton.disabled = true;
+        toggleInputMuteButton.classList.add("toggleInputMuteButton--disabled");
         isMuted = false;
+
+        videoURLInput.disabled = true;
 
         if (hifiCommunicator) {
             hifiCommunicator.disconnectFromHiFiAudioAPIServer();

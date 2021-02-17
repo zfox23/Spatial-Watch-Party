@@ -31,21 +31,32 @@ allVideosContainer.addEventListener("mousemove", e => {
         "x": e.clientX - cursorDistanceFromTopLeftOfElement.x,
         "y": e.clientY - cursorDistanceFromTopLeftOfElement.y
     };
-    
-    elementToMove.style.left = `${Math.round(newPosition.x)}px`;
-    elementToMove.style.top = `${Math.round(newPosition.y)}px`;
 
     let boundingClientRect = elementToMove.getBoundingClientRect();
-    let relativeParticipantVideoContainerPosition = {
-        "x": boundingClientRect.left,
-        "y": boundingClientRect.top
-    };
 
     if (elementToMove.classList.contains("participantVideoContainer--mine")) {
+        elementToMove.style.left = `${Math.round(newPosition.x)}px`;
+        elementToMove.style.top = `${Math.round(newPosition.y)}px`;
+
+        let relativeParticipantVideoContainerPosition = {
+            "x": boundingClientRect.left,
+            "y": boundingClientRect.top
+        };
+
         updateMyPosition({
             "x": linearScale(relativeParticipantVideoContainerPosition.x + boundingClientRect.width / 2, 0, window.innerWidth, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2),
             "y": -1 * linearScale(relativeParticipantVideoContainerPosition.y + CONTROLS_CONTAINER_HEIGHT_PX + VIDEO_TITLE_BAR_HEIGHT_PX + boundingClientRect.height / 2, CONTROLS_CONTAINER_HEIGHT_PX, window.innerHeight, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2)
         }, false);
+    } else if (elementToMove.classList.contains("streamingVideoPlayerContainer--maximized")) {
+        elementToMove.classList.remove("streamingVideoPlayerContainer--maximized");
+        elementToMove.style.left = `${Math.round(newPosition.x + e.clientX)}px`;
+        elementToMove.style.top = `${Math.round(newPosition.y)}px`;
+        boundingClientRect = elementToMove.getBoundingClientRect();
+        cursorDistanceFromTopLeftOfElement.x = cursorStartClientPosition.x - boundingClientRect.left + boundingClientRect.width / 2;
+        cursorDistanceFromTopLeftOfElement.y = cursorStartClientPosition.y - boundingClientRect.top;
+    } else {
+        elementToMove.style.left = `${Math.round(newPosition.x)}px`;
+        elementToMove.style.top = `${Math.round(newPosition.y)}px`;
     }
 });
 

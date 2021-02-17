@@ -5,6 +5,29 @@ firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
 let streamingVideoPlayerContainer = document.querySelector(".streamingVideoPlayerContainer");
 let closeStreamingVideoButton = document.querySelector(".closeStreamingVideoButton");
+let maximizeStreamingVideoButton = document.querySelector(".maximizeStreamingVideoButton");
+let videoURLInput = document.querySelector('.videoURLInput');
+videoURLInput.addEventListener("input", (e) => {
+    onVideoURLInputChanged(e);
+});
+
+function onVideoURLInputChanged(e) {
+    let newValue = e.target.value;
+    
+    let url;
+    try {
+        url = new URL(newValue);
+    } catch (e) {
+        return;
+    }
+
+    if (maybeEnqueueNewVideo(url)) {
+        e.target.value = `Got it!`;
+        setTimeout(() => {
+            e.target.value = ``;
+        }, 800);
+    }
+}
 
 let youTubePlayer;
 function onYouTubeIframeAPIReady() {
@@ -31,7 +54,7 @@ function onPlayerError(event) {
 function onPlayerStateChange(event) {
     console.log(`New YouTube Player State: ${event.data}`);
 
-    socket.emit("newPlayerState", myProvidedUserID, event.data, youTubePlayer.getCurrentTime());
+    socket.emit("newPlayerState", myProvidedUserID, event.data, youTubePlayer.getCurrentTime(), spaceName);
 
     switch (event.data) {
         case (YT.PlayerState.PLAYING):
@@ -59,7 +82,7 @@ function initWatchVideoLogic() {
 }
 
 function stopWatchVideoLogic() {
-    socket.emit("removeWatcher", myProvidedUserID);
+    socket.emit("removeWatcher", myProvidedUserID, spaceName);
     onStopVideoRequested();
 }
 
@@ -67,19 +90,19 @@ let seekTimeout;
 let lastPlayerTime = -1;
 let CHECK_PLAYER_TIME_TIMEOUT_MS = 1000;
 function runSeekDetector() {
-    stopSeekDetector();
+    seekTimeout = undefined;
 
     if (lastPlayerTime !== -1) {
         if (youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING) {
             let currentTime = youTubePlayer.getCurrentTime();
 
-            socket.emit("setSeekTime", currentTime);
+            socket.emit("setSeekTime", myProvidedUserID, currentTime, spaceName);
 
             // Expecting 1 second interval with 500ms margin of error
             if (Math.abs(currentTime - lastPlayerTime - 1) > 0.5) {
                 // A seek probably happened!
                 console.log(`Seek detected! Requesting video seek to ${currentTime}s...`);
-                socket.emit("requestVideoSeek", myProvidedUserID, currentTime);
+                socket.emit("requestVideoSeek", myProvidedUserID, currentTime, spaceName);
             }
         }
     } else {
@@ -133,6 +156,28 @@ socket.on("videoPlay", (providedUserID, seekTimeSeconds) => {
     youTubePlayer.playVideo();
 });
 
+function maybeEnqueueNewVideo(url) {
+    if (!hifiCommunicator) {
+        return false;
+    }
+
+    let youTubeVideoID;
+    if (url.hostname === "youtu.be") {
+        youTubeVideoID = url.pathname.substr(1);
+    } else if (url.hostname === "www.youtube.com" || url.hostname === "youtube.com") {
+        const params = new URLSearchParams(url.search);
+        youTubeVideoID = params.get("v");
+    }
+
+    if (youTubeVideoID && youTubeVideoID.length > 1) {
+        console.log(`User pasted YouTube video URL!\n${url}`);
+        socket.emit("enqueueNewVideo", myProvidedUserID, url, spaceName);
+        return true;
+    }
+
+    return false;
+}
+
 document.addEventListener('paste', (event) => {
     let paste = (event.clipboardData || window.clipboardData).getData('text');
     let url;
@@ -142,17 +187,7 @@ document.addEventListener('paste', (event) => {
         return;
     }
 
-    let pastedYouTubeVideo = false;
-    if (url.hostname === "youtu.be") {
-        pastedYouTubeVideo = true;
-    } else if (url.hostname === "www.youtube.com" || url.hostname === "youtube.com") {
-        pastedYouTubeVideo = true;
-    }
-
-    if (pastedYouTubeVideo) {
-        console.log(`User pasted YouTube video URL!\n${url}`);
-        socket.emit("enqueueNewVideo", url);
-    }
+    maybeEnqueueNewVideo(url);
 });
 
 function onStopVideoRequested(providedUserID) {
@@ -171,6 +206,10 @@ socket.on("stopVideoRequested", (providedUserID) => {
 
 closeStreamingVideoButton.addEventListener("click", (e) => {
     console.log(`You requested that video playback be stopped.`);
-    socket.emit("stopVideo", myProvidedUserID);
+    socket.emit("stopVideo", myProvidedUserID, spaceName);
     onStopVideoRequested(myProvidedUserID);
+});
+
+maximizeStreamingVideoButton.addEventListener("click", (e) => {
+    streamingVideoPlayerContainer.classList.toggle("streamingVideoPlayerContainer--maximized");
 });
