@@ -14,6 +14,16 @@ button {
     margin: 0;
 }
 
+.mainCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+}
+
 .controlsContainer {
     position: fixed;
     width: 100%;
@@ -25,6 +35,7 @@ button {
     align-items: center;
     justify-content: space-evenly;
     background-color: #111111;
+    z-index: 100;
 }
 
 .controlsContainer > div {
@@ -38,6 +49,7 @@ button {
     position: fixed;
     bottom: 0;
     left: 0;
+    z-index: 5;
 }
 
 .participantVideoContainer {

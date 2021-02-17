@@ -31,19 +31,21 @@ function onPlayerError(event) {
 function onPlayerStateChange(event) {
     console.log(`New YouTube Player State: ${event.data}`);
 
-    socket.emit("newPlayerState", event.data);
+    socket.emit("newPlayerState", myProvidedUserID, event.data, youTubePlayer.getCurrentTime());
 
     switch (event.data) {
         case (YT.PlayerState.PLAYING):
-            console.log(`Showing YouTube player...`);
-            streamingVideoPlayerContainer.classList.remove("displayNone");
-            let boundingClientRect = streamingVideoPlayerContainer.getBoundingClientRect();
-            let position = {
-                "x": Math.round(window.innerWidth / 2 - boundingClientRect.width / 2),
-                "y": Math.round(window.innerHeight / 2 - boundingClientRect.height / 2)
-            };
-            streamingVideoPlayerContainer.style.left = `${position.x}px`;
-            streamingVideoPlayerContainer.style.top = `${position.y}px`;
+            if (streamingVideoPlayerContainer.classList.contains("displayNone")) {
+                console.log(`Showing YouTube player...`);
+                streamingVideoPlayerContainer.classList.remove("displayNone");
+                let boundingClientRect = streamingVideoPlayerContainer.getBoundingClientRect();
+                let position = {
+                    "x": Math.round(window.innerWidth / 2 - boundingClientRect.width / 2),
+                    "y": Math.round(window.innerHeight / 2 - boundingClientRect.height / 2)
+                };
+                streamingVideoPlayerContainer.style.left = `${position.x}px`;
+                streamingVideoPlayerContainer.style.top = `${position.y}px`;
+            }
             break;
         case (YT.PlayerState.CUED):
             break;
@@ -53,7 +55,7 @@ function onPlayerStateChange(event) {
 const socket = io('http://localhost:8081');
 
 function initWatchVideoLogic() {
-    socket.emit("addWatcher", myProvidedUserID);
+    socket.emit("addWatcher", myProvidedUserID, spaceName);
 }
 
 function stopWatchVideoLogic() {
@@ -65,14 +67,15 @@ let seekTimeout;
 let lastPlayerTime = -1;
 let CHECK_PLAYER_TIME_TIMEOUT_MS = 1000;
 function runSeekDetector() {
-    seekTimeout = undefined;
+    stopSeekDetector();
+
     if (lastPlayerTime !== -1) {
         if (youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING) {
             let currentTime = youTubePlayer.getCurrentTime();
 
             socket.emit("setSeekTime", currentTime);
 
-            // expecting 1 second interval with 500ms margin
+            // Expecting 1 second interval with 500ms margin of error
             if (Math.abs(currentTime - lastPlayerTime - 1) > 0.5) {
                 // A seek probably happened!
                 console.log(`Seek detected! Requesting video seek to ${currentTime}s...`);
@@ -82,8 +85,18 @@ function runSeekDetector() {
     } else {
         console.log(`Starting video seek detector...`);
     }
+
     lastPlayerTime = youTubePlayer.getCurrentTime();
+
     seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS);
+}
+
+function stopSeekDetector() {
+    if (seekTimeout) {
+        clearTimeout(seekTimeout);
+    }
+    seekTimeout = undefined;
+    lastPlayerTime = -1;
 }
 
 socket.on("watchNewYouTubeVideo", (youTubeVideoID, seekTimeSeconds) => {
@@ -94,21 +107,40 @@ socket.on("watchNewYouTubeVideo", (youTubeVideoID, seekTimeSeconds) => {
     console.log(`Loading YouTube video with ID \`${youTubeVideoID}\`...`);
     youTubePlayer.loadVideoById(youTubeVideoID, seekTimeSeconds);
 
-    seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS); // Delay initial call.
+    stopSeekDetector();
+    seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS); // Delay the detector start.
 });
 
 socket.on("videoSeek", (providedUserID, seekTimeSeconds) => {
-    if (seekTimeout) {
-        clearTimeout(seekTimeout);
-        seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS);
-    }
+    stopSeekDetector();
+    seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS); // Delay the detector start.
     console.log(`\`${providedUserID}\` requested video seek to ${seekTimeSeconds} seconds.`);
     youTubePlayer.seekTo(seekTimeSeconds);
 });
 
+socket.on("videoPause", (providedUserID, seekTimeSeconds) => {
+    stopSeekDetector();
+    console.log(`\`${providedUserID}\` paused the video.`);
+    youTubePlayer.pauseVideo();
+    youTubePlayer.seekTo(seekTimeSeconds);
+});
+
+socket.on("videoPlay", (providedUserID, seekTimeSeconds) => {
+    stopSeekDetector();
+    seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS); // Delay the detector start.
+    console.log(`\`${providedUserID}\` started playing the video.`);
+    youTubePlayer.seekTo(seekTimeSeconds);
+    youTubePlayer.playVideo();
+});
+
 document.addEventListener('paste', (event) => {
     let paste = (event.clipboardData || window.clipboardData).getData('text');
-    let url = new URL(paste);
+    let url;
+    try {
+        url = new URL(paste);
+    } catch (e) {
+        return;
+    }
 
     let pastedYouTubeVideo = false;
     if (url.hostname === "youtu.be") {
@@ -128,11 +160,7 @@ function onStopVideoRequested(providedUserID) {
 
     youTubePlayer.stopVideo();
 
-    if (seekTimeout) {
-        clearTimeout(seekTimeout);
-        seekTimeout = undefined;
-    }
-    lastPlayerTime = -1;
+    stopSeekDetector();
 
     streamingVideoPlayerContainer.classList.add("displayNone");
 }

@@ -143,12 +143,15 @@ function onWatchNewVideo(newVideoURL) {
     }
 }
 
-let suppliedUserIDToPlayerStateMap = new Map();
+let suppliedUserIDToSpaceNameMap = new Map();
 let currentQueuedVideoURL;
 let currentVideoSeekTime;
+let currentVideoIsPlaying = false;
+let currentPlayerState;
 io.sockets.on("connection", (socket) => {
-    socket.on("addWatcher", (suppliedUserID) => {
-        suppliedUserIDToPlayerStateMap.set(suppliedUserID, undefined);
+    socket.on("addWatcher", (suppliedUserID, spaceName) => {
+        console.log(`Adding watcher with ID \`${suppliedUserID}\` to space named \`${spaceName}\`.`);
+        suppliedUserIDToSpaceNameMap.set(suppliedUserID, spaceName);
 
         if (currentQueuedVideoURL) {
             onWatchNewVideo(currentQueuedVideoURL);
@@ -156,18 +159,21 @@ io.sockets.on("connection", (socket) => {
     });
 
     socket.on("removeWatcher", (suppliedUserID) => {
-        if (suppliedUserIDToPlayerStateMap.has(suppliedUserID)) {
-            suppliedUserIDToPlayerStateMap.delete(suppliedUserID);
+        if (suppliedUserIDToSpaceNameMap.has(suppliedUserID)) {
+            suppliedUserIDToSpaceNameMap.delete(suppliedUserID);
         }
 
-        if (suppliedUserIDToPlayerStateMap.size === 0) {
+        if (suppliedUserIDToSpaceNameMap.size === 0) {
             currentQueuedVideoURL = undefined;
             currentVideoSeekTime = undefined;
+            currentVideoIsPlaying = false;
+            currentPlayerState = undefined;
         }
     });
 
     socket.on("enqueueNewVideo", (newVideoURL) => {
         currentVideoSeekTime = 0;
+        currentVideoIsPlaying = true;
         onWatchNewVideo(newVideoURL);
     });
 
@@ -180,10 +186,20 @@ io.sockets.on("connection", (socket) => {
         currentVideoSeekTime = seekTimeSeconds;
     });
 
-    socket.on("newPlayerState", (suppliedUserID, newPlayerState) => {
-        if (suppliedUserIDToPlayerStateMap.has(suppliedUserID)) {
-            suppliedUserIDToPlayerStateMap.set(suppliedUserID, newPlayerState);
+    socket.on("newPlayerState", (suppliedUserID, newPlayerState, seekTimeSeconds) => {
+        if (!(newPlayerState === 1 || newPlayerState === 2) || currentPlayerState === newPlayerState) {
+            return;
         }
+        
+        if (newPlayerState === 2) { // YT.PlayerState.PAUSED
+            currentVideoIsPlaying = false;
+            socket.broadcast.emit("videoPause", suppliedUserID, seekTimeSeconds);
+        } else if (newPlayerState === 1) { // YT.PlayerState.PLAYING
+            currentVideoIsPlaying = true;
+            socket.broadcast.emit("videoPlay", suppliedUserID, seekTimeSeconds);
+        }
+
+        currentPlayerState = newPlayerState;
     });
 
     socket.on("stopVideo", (providedUserID) => {

@@ -28,7 +28,7 @@
     function updateVirtualSpaceDimensions() {
         let numParticipants = allUserData.length;
         if (!numParticipants) {
-            return;
+            numParticipants = 2; // Start the local virtual space as if it already contains 2 people. 
         }
 
         let numRowsAndCols = Math.ceil(Math.sqrt(numParticipants));
@@ -36,11 +36,15 @@
             "x": numRowsAndCols / 2,
             "y": numRowsAndCols / 2
         };
+
+        window.requestAnimationFrame(updateCanvas);
+
+        return virtualSpaceDimensions;
     }
 
     const FORWARD_ORIENTATION = new HighFidelityAudio.OrientationEuler3D({ "pitchDegrees": 0, "yawDegrees": 0, "rollDegrees": 0 });
     function updateMyPosition(targetPosition, alsoUpdateContainerPositions = true) {
-        if (!hifiCommunicator) {
+        if (!hifiCommunicator || !targetPosition) {
             return;
         }
 
@@ -58,23 +62,18 @@
 
         if (targetPosition) {
             Object.assign(myUserData.position, targetPosition);
-        } else {
-            myUserData.position = {
-                "x": Math.round(getRandomFloat(-virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2)),
-                "y": Math.round(getRandomFloat(-virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2))
-            };
         }
 
-        console.log(`My new position:\n${JSON.stringify(myUserData.position)}`);
-
-        console.log(hifiCommunicator.updateUserDataAndTransmit({
+        hifiCommunicator.updateUserDataAndTransmit({
             position: myUserData.position,
             orientationEuler: FORWARD_ORIENTATION,
-        }));
+        });
 
         if (alsoUpdateContainerPositions) {
             updateVideoContainerPositions();
         }
+
+        window.requestAnimationFrame(updateCanvas);
     }
 
     function updateVideoContainerPositions() {
@@ -86,8 +85,7 @@
                 return;
             }
 
-            let isMine = providedUserID === myProvidedUserID;
-            if (isMine && elementToMove && elementToMove.classList.contains("participantVideoContainer--mine")) {
+            if (providedUserID === myProvidedUserID && elementToMove && elementToMove.classList.contains("participantVideoContainer--mine")) {
                 return;
             }
 
@@ -111,12 +109,18 @@
     }
 
     function onNewHiFiUserDataReceived(receivedHiFiAudioAPIDataArray) {
-        let mustUpdateCanvas = false;
+        let mustUpdateVideoContainerPositions = false;
 
         for (let i = 0; i < receivedHiFiAudioAPIDataArray.length; i++) {
             let currentDataFromServer = receivedHiFiAudioAPIDataArray[i];
             let currentProvidedUserID = currentDataFromServer.providedUserID;
             let currentLocalUserData = allUserData.find((element) => { return element.providedUserID === currentProvidedUserID; })
+            let isMine = currentProvidedUserID === myProvidedUserID;
+
+            if (isMine && elementToMove && elementToMove.classList.contains("participantVideoContainer--mine")) {
+                continue;
+            }
+
             if (currentLocalUserData) {
                 if (currentDataFromServer.position) {
                     if (!currentLocalUserData.position) {
@@ -125,27 +129,32 @@
 
                     if (typeof (currentDataFromServer.position.x) === "number") {
                         currentLocalUserData.position.x = currentDataFromServer.position.x;
-                        mustUpdateCanvas = true;
+                        mustUpdateVideoContainerPositions = true;
                     }
                     if (typeof (currentDataFromServer.position.y) === "number") {
                         currentLocalUserData.position.y = currentDataFromServer.position.y;
-                        mustUpdateCanvas = true;
+                        mustUpdateVideoContainerPositions = true;
                     }
                     if (typeof (currentDataFromServer.position.z) === "number") {
                         currentLocalUserData.position.z = currentDataFromServer.position.z;
-                        mustUpdateCanvas = true;
+                        mustUpdateVideoContainerPositions = true;
                     }
                 }
             } else {
                 console.log(`New HiFi User! Provided ID: ${currentProvidedUserID}`);
                 allUserData.push(new WatchPartyUserData({
-                    providedUserID: currentProvidedUserID
+                    providedUserID: currentProvidedUserID,
+                    position: currentDataFromServer.position
                 }));
-                mustUpdateCanvas = true;
+                mustUpdateVideoContainerPositions = true;
+            }
+
+            if (mustUpdateVideoContainerPositions && isMine && (!elementToMove || !elementToMove.classList.contains("participantVideoContainer--mine"))) {
+                window.requestAnimationFrame(updateCanvas);
             }
         }
 
-        if (mustUpdateCanvas) {
+        if (mustUpdateVideoContainerPositions) {
             updateVideoContainerPositions();
         }
     }
@@ -163,6 +172,7 @@
     }
 
     let hifiCommunicator;
+    let spaceName = '<%- spaceName %>';
     let myProvidedUserID;
     let allUserData = [];
     async function connectToHiFi() {
@@ -214,7 +224,17 @@
 
         initWatchVideoLogic();
 
-        updateMyPosition();
+        updateVirtualSpaceDimensions();
+        updateCanvasDimensions();
+
+        let randomPosition = {
+            "x": getRandomFloat(-virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2),
+            "y": getRandomFloat(-virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2)
+        };
+
+        console.log(`Starting position: ${JSON.stringify(randomPosition)}`);
+
+        updateMyPosition(randomPosition);
 
         // Show the user that we're connected by changing the text on the button.
         connectDisconnectButton.removeEventListener("click", connectToHiFiAndVideoService);
@@ -281,6 +301,10 @@
         hifiCommunicator = null;
     }
 
-    window.onresize = updateVideoContainerPositions;
+    window.onresize = () => {
+        updateCanvasDimensions();
+        updateVideoContainerPositions();
+        updateCanvas();
+    };
     window.onbeforeunload = disconnectFromAll;
 </script>
