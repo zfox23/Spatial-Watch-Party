@@ -75,7 +75,7 @@ function onPlayerStateChange(event) {
     }
 }
 
-const socket = io('http://localhost:8081');
+const socket = io();
 
 function initWatchVideoLogic() {
     socket.emit("addWatcher", myProvidedUserID, spaceName);

@@ -13,7 +13,7 @@ const APP_SECRET = auth.HIFI_APP_SECRET;
 const SECRET_KEY_FOR_SIGNING = crypto.createSecretKey(Buffer.from(APP_SECRET, "utf8"));
 
 const app = express();
-const EXPRESS_PORT = 8080;
+const PORT = 8085;
 
 app.set('view engine', 'ejs');
 app.use(express.static('static'))
@@ -106,19 +106,11 @@ app.get('/spatial-watch-party', async (req, res) => {
     res.render('index', { providedUserID, hiFiJWT, twilioJWT, spaceName });
 });
 
-let adminJWT;
-app.listen(EXPRESS_PORT, async () => {
-    adminJWT = await generateHiFiJWT("example-admin", undefined, true);
-    console.log(`The High Fidelity Sample App is ready and listening at http://localhost:${EXPRESS_PORT}\nVisit http://localhost:${EXPRESS_PORT}/spatial-watch-party in your browser.`)
-});
 
 
+const http = require("http").createServer(app);
 
-const SOCKET_PORT = 8081;
-const http = require("http");
-const server = http.createServer();
-
-const io = require("socket.io")(server, {
+const io = require("socket.io")(http, {
     cors: {
         origin: "http://localhost:8080",
         methods: ["GET", "POST"]
@@ -253,4 +245,8 @@ io.sockets.on("connection", (socket) => {
     });
 });
 
-server.listen(SOCKET_PORT, () => console.log(`The High Fidelity Spatial Watch Party SocketIO Server is running on port ${SOCKET_PORT}`));
+let adminJWT;
+http.listen(PORT, async () => {
+    adminJWT = await generateHiFiJWT("example-admin", undefined, true);
+    console.log(`Spatial Watch Party is ready and listening at http://localhost:${PORT}\nVisit http://localhost:${PORT}/spatial-watch-party in your browser.`)
+});
