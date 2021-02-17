@@ -100,7 +100,7 @@ app.get('/spatial-watch-party', async (req, res) => {
 
     console.log(`The HiFi Space ID associated with Space Name \`${spaceName}\` is \`${spaceID}\``);
 
-    let providedUserID = `${uppercaseFirstLetter(ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)])}${uppercaseFirstLetter(NOUNS[Math.floor(Math.random() * NOUNS.length)])}${Math.floor(Math.random() * Math.floor(1000))}`;
+    let providedUserID = req.query.username || `${uppercaseFirstLetter(ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)])}${uppercaseFirstLetter(NOUNS[Math.floor(Math.random() * NOUNS.length)])}${Math.floor(Math.random() * Math.floor(1000))}`;
     let hiFiJWT = await generateHiFiJWT(providedUserID, spaceID, false);
     let twilioJWT = generateTwilioAccessToken(providedUserID, spaceName);
     res.render('index', { providedUserID, hiFiJWT, twilioJWT, spaceName });

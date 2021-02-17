@@ -36,7 +36,7 @@ function updateCanvas() {
     let myPositionInCanvasSpace = {
         "x": Math.round(linearScale(myUserData.position.x, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2, 0, mainCanvas.width)),
         // We "reverse" the last two terms here because "-y" in canvas space is "+y" in mixer space.
-        "y": Math.round(linearScale(myUserData.position.y, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2, mainCanvas.height, CONTROLS_CONTAINER_HEIGHT_PX) - CONTROLS_CONTAINER_HEIGHT_PX)
+        "y": Math.round(linearScale(myUserData.position.y, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2, mainCanvas.height, 0))
     };
 
     let pixelsPerMeter = Math.round(mainCanvas.width / virtualSpaceDimensions.x);

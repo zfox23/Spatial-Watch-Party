@@ -118,6 +118,22 @@ p {
     z-index: 20;
 }
 
+.participantID {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    height: 24px;
+    line-height: 24px;
+    max-width: 216px;
+    padding: 0 4px;
+    color: #DDDDDD;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: fade;
+    z-index: 25;
+}
+
 .videoTitleBar {
     width: 100%;
     height: 40px;
@@ -168,8 +184,8 @@ p {
 
 .streamingVideoPlayerContainer {
     position: fixed;
-    width: 300px;
-    height: calc(200px + 40px);
+    width: 512px;
+    height: calc(288px + 40px);
     display: flex;
     flex-direction: column;
     background-color: black;

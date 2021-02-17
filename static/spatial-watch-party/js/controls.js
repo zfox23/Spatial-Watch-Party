@@ -45,7 +45,7 @@ allVideosContainer.addEventListener("mousemove", e => {
 
         updateMyPosition({
             "x": linearScale(relativeParticipantVideoContainerPosition.x + boundingClientRect.width / 2, 0, window.innerWidth, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2),
-            "y": -1 * linearScale(relativeParticipantVideoContainerPosition.y + CONTROLS_CONTAINER_HEIGHT_PX + VIDEO_TITLE_BAR_HEIGHT_PX + boundingClientRect.height / 2, CONTROLS_CONTAINER_HEIGHT_PX, window.innerHeight, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2)
+            "y": -1 * linearScale(relativeParticipantVideoContainerPosition.y + boundingClientRect.height / 2 + VIDEO_TITLE_BAR_HEIGHT_PX, 0, window.innerHeight, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2)
         }, false);
     } else if (elementToMove.classList.contains("streamingVideoPlayerContainer--maximized")) {
         elementToMove.classList.remove("streamingVideoPlayerContainer--maximized");

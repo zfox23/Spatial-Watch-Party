@@ -85,7 +85,9 @@
                 return;
             }
 
-            if (providedUserID === myProvidedUserID && elementToMove && elementToMove.classList.contains("participantVideoContainer--mine")) {
+            let isMine = providedUserID === myProvidedUserID;
+
+            if (isMine && elementToMove && elementToMove.classList.contains("participantVideoContainer--mine")) {
                 return;
             }
 
@@ -102,7 +104,10 @@
             currentParticipantVideoContainer.style.left = `${Math.round(leftOffset)}px`;
 
             // `-1` term because we want higher `position.y` values to yield a video towards the top of the browser window
-            let topOffset = linearScale(-1 * position.y, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2, 0, window.innerHeight) - (currentParticipantVideoContainer.offsetHeight / 2) - CONTROLS_CONTAINER_HEIGHT_PX;
+            let topOffset = linearScale(-position.y, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2, 0, window.innerHeight) - (currentParticipantVideoContainer.offsetHeight / 2);
+            // if (!isMine) {
+            //     topOffset -= VIDEO_TITLE_BAR_HEIGHT_PX;
+            // }
             topOffset = clamp(topOffset, CONTROLS_CONTAINER_HEIGHT_PX, window.innerHeight - currentParticipantVideoContainer.offsetHeight);
             currentParticipantVideoContainer.style.top = `${Math.round(topOffset)}px`;
         });

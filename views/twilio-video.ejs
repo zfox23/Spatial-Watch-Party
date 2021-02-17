@@ -24,6 +24,10 @@
         videoContainer.classList.add("videoContainer");
         videoContainer.appendChild(localVideoTrack.attach());
         div.appendChild(videoContainer);
+        let participantID = document.createElement("participantID");
+        participantID.classList.add("participantID");
+        participantID.innerHTML = myProvidedUserID;
+        div.appendChild(participantID);
         providedUserIDsToParticipantVideoContainerMap.set(myProvidedUserID, allVideosContainer.appendChild(div));
         updateVideoContainerPositions();
 
@@ -53,6 +57,11 @@
             
             let videoContainer = document.createElement("div");
             videoContainer.classList.add("videoContainer");
+
+            let participantID = document.createElement("participantID");
+            participantID.classList.add("participantID");
+            participantID.innerHTML = participant.identity;
+            div.appendChild(participantID);
 
             participant.on('trackSubscribed', track => trackSubscribed(videoContainer, track));
             participant.on('trackUnsubscribed', trackUnsubscribed);
