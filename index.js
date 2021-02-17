@@ -13,7 +13,7 @@ const APP_SECRET = auth.HIFI_APP_SECRET;
 const SECRET_KEY_FOR_SIGNING = crypto.createSecretKey(Buffer.from(APP_SECRET, "utf8"));
 
 const app = express();
-const PORT = 8080;
+const EXPRESS_PORT = 8080;
 
 app.set('view engine', 'ejs');
 app.use(express.static('static'))
@@ -70,7 +70,7 @@ function generateTwilioAccessToken(providedUserID, spaceName) {
 
 let spaceNameToIDMap = new Map();
 app.get('/spatial-watch-party', async (req, res) => {
-    let spaceName = req.query.space || auth.TWILIO_ROOM_NAME;
+    let spaceName = auth.TWILIO_ROOM_NAME;
 
     let spaceID;
     if (spaceNameToIDMap.has(spaceName)) {
@@ -103,7 +103,90 @@ app.get('/spatial-watch-party', async (req, res) => {
 });
 
 let adminJWT;
-app.listen(PORT, async () => {
+app.listen(EXPRESS_PORT, async () => {
     adminJWT = await generateHiFiJWT("example-admin", undefined, true);
-    console.log(`The High Fidelity Sample App is ready and listening at http://localhost:${PORT}\nVisit http://localhost:${PORT}/spatial-watch-party in your browser.`)
+    console.log(`The High Fidelity Sample App is ready and listening at http://localhost:${EXPRESS_PORT}\nVisit http://localhost:${EXPRESS_PORT}/spatial-watch-party in your browser.`)
 });
+
+
+
+const SOCKET_PORT = 8081;
+const http = require("http");
+const server = http.createServer();
+
+const io = require("socket.io")(server, {
+    cors: {
+        origin: "http://localhost:8080",
+        methods: ["GET", "POST"]
+    }
+});
+
+io.sockets.on("error", (e) => {
+    console.error(e);
+});
+
+function onWatchNewVideo(newVideoURL) {
+    let url = new URL(newVideoURL);
+
+    let youTubeVideoID;
+    if (url.hostname === "youtu.be") {
+        youTubeVideoID = url.pathname.substr(1);
+    } else if (url.hostname === "www.youtube.com" || url.hostname  === "youtube.com") {
+        const params = new URLSearchParams(url.search);
+        youTubeVideoID = params.get("v");
+    }
+
+    if (youTubeVideoID) {
+        currentQueuedVideoURL = newVideoURL;
+        console.log(`Emitting \`watchNewYouTubeVideo\` with Video ID \`${youTubeVideoID}\`...`);
+        io.emit("watchNewYouTubeVideo", youTubeVideoID, currentVideoSeekTime);
+    }
+}
+
+let suppliedUserIDToPlayerStateMap = new Map();
+let currentQueuedVideoURL;
+let currentVideoSeekTime;
+io.sockets.on("connection", (socket) => {
+    socket.on("addWatcher", (suppliedUserID) => {
+        suppliedUserIDToPlayerStateMap.set(suppliedUserID, undefined);
+
+        if (currentQueuedVideoURL) {
+            onWatchNewVideo(currentQueuedVideoURL);
+        }
+    });
+
+    socket.on("removeWatcher", (suppliedUserID) => {
+        if (suppliedUserIDToPlayerStateMap.has(suppliedUserID)) {
+            suppliedUserIDToPlayerStateMap.delete(suppliedUserID);
+        }
+
+        if (suppliedUserIDToPlayerStateMap.size === 0) {
+            currentQueuedVideoURL = undefined;
+            currentVideoSeekTime = undefined;
+        }
+    });
+
+    socket.on("enqueueNewVideo", (newVideoURL) => {
+        currentVideoSeekTime = 0;
+        onWatchNewVideo(newVideoURL);
+    });
+
+    socket.on("requestVideoSeek", (suppliedUserID, seekTimeSeconds) => {
+        currentVideoSeekTime = seekTimeSeconds;
+        socket.broadcast.emit("videoSeek", suppliedUserID, currentVideoSeekTime);
+    });
+
+    socket.on("newPlayerState", (suppliedUserID, newPlayerState) => {
+        if (suppliedUserIDToPlayerStateMap.has(suppliedUserID)) {
+            suppliedUserIDToPlayerStateMap.set(suppliedUserID, newPlayerState);
+        }
+    });
+
+    socket.on("stopVideo", (providedUserID) => {
+        currentVideoSeekTime = undefined;
+        currentQueuedVideoURL = undefined;
+        io.emit("stopVideoRequested", providedUserID);
+    });
+});
+
+server.listen(SOCKET_PORT, () => console.log(`The High Fidelity Spatial Watch Party SocketIO Server is running on port ${SOCKET_PORT}`));

@@ -85,7 +85,7 @@
             }
 
             let isMine = providedUserID === myProvidedUserID;
-            if (isMine && videoContainerToMove) {
+            if (isMine && elementToMove && elementToMove.classList.contains("participantVideoContainer--mine")) {
                 return;
             }
 
@@ -210,11 +210,13 @@
             return;
         }
 
+        initWatchVideoLogic();
+
         updateMyPosition();
 
         // Show the user that we're connected by changing the text on the button.
         connectDisconnectButton.removeEventListener("click", connectToHiFiAndVideoService);
-        connectDisconnectButton.addEventListener("click", disconnectFromHiFiAndVideoService);
+        connectDisconnectButton.addEventListener("click", disconnectFromAll);
         connectDisconnectButton.innerHTML = `Disconnect`;
         connectDisconnectButton.disabled = false;
         toggleInputMuteButton.disabled = false;
@@ -254,15 +256,16 @@
         toggleOutputMuteButton.innerHTML = `Toggle Output Mute (currently ${outputAudioEl.muted ? "muted" : "unmuted"})`;
     }
 
-    function disconnectFromHiFiAndVideoService() {
+    function disconnectFromAll() {
         disconnectFromVideoService();
         disconnectFromHiFi();
+        stopWatchVideoLogic();
     }
 
     function disconnectFromHiFi() {
         console.log(`Disconnecting from High Fidelity Audio API Servers...`);
 
-        connectDisconnectButton.removeEventListener("click", disconnectFromHiFiAndVideoService);
+        connectDisconnectButton.removeEventListener("click", disconnectFromAll);
         connectDisconnectButton.addEventListener("click", connectToHiFiAndVideoService);
         connectDisconnectButton.disabled = false;
         connectDisconnectButton.innerHTML = `Connect`;
@@ -277,5 +280,5 @@
     }
 
     window.onresize = updateVideoContainerPositions;
-    window.onbeforeunload = disconnectFromHiFiAndVideoService;
+    window.onbeforeunload = disconnectFromAll;
 </script>

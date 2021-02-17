@@ -97,8 +97,10 @@
             allUserData.splice(idx, 1);
         }
 
+        if (localVideoTrack) {
         const mediaElements = localVideoTrack.detach();
         mediaElements.forEach(mediaElement => mediaElement.parentNode.parentNode.remove());
+        }
 
         if (!myTwilioRoom) {
             return;

@@ -2,60 +2,62 @@ let cursorStartClientPosition = {
     "x": 0,
     "y": 0,
 };
-let cursorDistanceFromTopLeftOfVideoContainer = {
+let cursorDistanceFromTopLeftOfElement = {
     "x": 0,
     "y": 0
 };
-let videoContainerToMove = undefined;
+let elementToMove = undefined;
 const CONTROLS_CONTAINER_HEIGHT_PX = 60;
 const VIDEO_TITLE_BAR_HEIGHT_PX = 40;
 
 allVideosContainer.addEventListener("mousedown", e => {
-    let closest = e.target.closest(".participantVideoContainer--mine");
+    let closest = e.target.closest(".participantVideoContainer--mine") || e.target.closest(".streamingVideoPlayerContainer");
     if (closest) {
-        videoContainerToMove = closest;
-        let videoContainerBoundingClientRect = videoContainerToMove.getBoundingClientRect();
+        elementToMove = closest;
+        let boundingClientRect = elementToMove.getBoundingClientRect();
         cursorStartClientPosition.x = e.clientX;
         cursorStartClientPosition.y = e.clientY;
-        cursorDistanceFromTopLeftOfVideoContainer.x = cursorStartClientPosition.x - videoContainerBoundingClientRect.left;
-        cursorDistanceFromTopLeftOfVideoContainer.y = cursorStartClientPosition.y - videoContainerBoundingClientRect.top;
+        cursorDistanceFromTopLeftOfElement.x = cursorStartClientPosition.x - boundingClientRect.left;
+        cursorDistanceFromTopLeftOfElement.y = cursorStartClientPosition.y - boundingClientRect.top;
     }
 });
 
 allVideosContainer.addEventListener("mousemove", e => {
-    if (!videoContainerToMove) {
+    if (!elementToMove) {
         return;
     }
 
     let newPosition = {
-        "x": e.clientX - cursorDistanceFromTopLeftOfVideoContainer.x,
-        "y": e.clientY - cursorDistanceFromTopLeftOfVideoContainer.y
+        "x": e.clientX - cursorDistanceFromTopLeftOfElement.x,
+        "y": e.clientY - cursorDistanceFromTopLeftOfElement.y
     };
     
-    videoContainerToMove.style.left = `${Math.round(newPosition.x)}px`;
-    videoContainerToMove.style.top = `${Math.round(newPosition.y)}px`;
+    elementToMove.style.left = `${Math.round(newPosition.x)}px`;
+    elementToMove.style.top = `${Math.round(newPosition.y)}px`;
 });
 
 function onMouseUp(e) {
-    if (videoContainerToMove) {
-        let videoContainerBoundingClientRect = videoContainerToMove.getBoundingClientRect();
+    if (elementToMove) {
+        let boundingClientRect = elementToMove.getBoundingClientRect();
         let relativeParticipantVideoContainerPosition = {
-            "x": videoContainerBoundingClientRect.left,
-            "y": videoContainerBoundingClientRect.top
+            "x": boundingClientRect.left,
+            "y": boundingClientRect.top
         };
 
-        updateMyPosition({
-            "x": linearScale(relativeParticipantVideoContainerPosition.x + videoContainerBoundingClientRect.width / 2, 0, window.innerWidth, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2),
-            "y": -1 * linearScale(relativeParticipantVideoContainerPosition.y + CONTROLS_CONTAINER_HEIGHT_PX + VIDEO_TITLE_BAR_HEIGHT_PX + videoContainerBoundingClientRect.height / 2, CONTROLS_CONTAINER_HEIGHT_PX, window.innerHeight, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2)
-        });
+        if (elementToMove.classList.contains("participantVideoContainer--mine")) {
+            updateMyPosition({
+                "x": linearScale(relativeParticipantVideoContainerPosition.x + boundingClientRect.width / 2, 0, window.innerWidth, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2),
+                "y": -1 * linearScale(relativeParticipantVideoContainerPosition.y + CONTROLS_CONTAINER_HEIGHT_PX + VIDEO_TITLE_BAR_HEIGHT_PX + boundingClientRect.height / 2, CONTROLS_CONTAINER_HEIGHT_PX, window.innerHeight, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2)
+            });
+        }
     }
-    videoContainerToMove = undefined;
+    elementToMove = undefined;
 
     cursorStartClientPosition.x = 0;
     cursorStartClientPosition.y = 0;
     
-    cursorDistanceFromTopLeftOfVideoContainer.x = 0;
-    cursorDistanceFromTopLeftOfVideoContainer.y = 0;
+    cursorDistanceFromTopLeftOfElement.x = 0;
+    cursorDistanceFromTopLeftOfElement.y = 0;
 }
 
 allVideosContainer.addEventListener("mouseup", e => {
