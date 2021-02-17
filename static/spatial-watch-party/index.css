@@ -67,6 +67,10 @@ button {
     flex-direction: row-reverse;
 }
 
+.videoTitleBar--YouTube {
+    background-color: #FF0000;
+}
+
 .videoTitleBar:hover {
     cursor: move;
 }

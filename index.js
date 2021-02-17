@@ -176,6 +176,10 @@ io.sockets.on("connection", (socket) => {
         socket.broadcast.emit("videoSeek", suppliedUserID, currentVideoSeekTime);
     });
 
+    socket.on("setSeekTime", (seekTimeSeconds) => {
+        currentVideoSeekTime = seekTimeSeconds;
+    });
+
     socket.on("newPlayerState", (suppliedUserID, newPlayerState) => {
         if (suppliedUserIDToPlayerStateMap.has(suppliedUserID)) {
             suppliedUserIDToPlayerStateMap.set(suppliedUserID, newPlayerState);

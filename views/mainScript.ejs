@@ -39,7 +39,7 @@
     }
 
     const FORWARD_ORIENTATION = new HighFidelityAudio.OrientationEuler3D({ "pitchDegrees": 0, "yawDegrees": 0, "rollDegrees": 0 });
-    function updateMyPosition(targetPosition) {
+    function updateMyPosition(targetPosition, alsoUpdateContainerPositions = true) {
         if (!hifiCommunicator) {
             return;
         }
@@ -72,7 +72,9 @@
             orientationEuler: FORWARD_ORIENTATION,
         }));
 
-        updateVideoContainerPositions();
+        if (alsoUpdateContainerPositions) {
+            updateVideoContainerPositions();
+        }
     }
 
     function updateVideoContainerPositions() {

@@ -58,16 +58,19 @@ function initWatchVideoLogic() {
 
 function stopWatchVideoLogic() {
     socket.emit("removeWatcher", myProvidedUserID);
+    onStopVideoRequested();
 }
 
 let seekTimeout;
 let lastPlayerTime = -1;
 let CHECK_PLAYER_TIME_TIMEOUT_MS = 1000;
-function checkPlayerTime() {
+function runSeekDetector() {
     seekTimeout = undefined;
     if (lastPlayerTime !== -1) {
         if (youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING) {
             let currentTime = youTubePlayer.getCurrentTime();
+
+            socket.emit("setSeekTime", currentTime);
 
             // expecting 1 second interval with 500ms margin
             if (Math.abs(currentTime - lastPlayerTime - 1) > 0.5) {
@@ -76,9 +79,11 @@ function checkPlayerTime() {
                 socket.emit("requestVideoSeek", myProvidedUserID, currentTime);
             }
         }
+    } else {
+        console.log(`Starting video seek detector...`);
     }
     lastPlayerTime = youTubePlayer.getCurrentTime();
-    seekTimeout = setTimeout(checkPlayerTime, CHECK_PLAYER_TIME_TIMEOUT_MS);
+    seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS);
 }
 
 socket.on("watchNewYouTubeVideo", (youTubeVideoID, seekTimeSeconds) => {
@@ -89,15 +94,15 @@ socket.on("watchNewYouTubeVideo", (youTubeVideoID, seekTimeSeconds) => {
     console.log(`Loading YouTube video with ID \`${youTubeVideoID}\`...`);
     youTubePlayer.loadVideoById(youTubeVideoID, seekTimeSeconds);
 
-    seekTimeout = setTimeout(checkPlayerTime, CHECK_PLAYER_TIME_TIMEOUT_MS); // Delay initial call.
+    seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS); // Delay initial call.
 });
 
 socket.on("videoSeek", (providedUserID, seekTimeSeconds) => {
     if (seekTimeout) {
         clearTimeout(seekTimeout);
-        seekTimeout = setTimeout(checkPlayerTime, CHECK_PLAYER_TIME_TIMEOUT_MS);
+        seekTimeout = setTimeout(runSeekDetector, CHECK_PLAYER_TIME_TIMEOUT_MS);
     }
-    console.log(`\`${providedUserID}\` requested video seek to ${providedUserID} seconds.`);
+    console.log(`\`${providedUserID}\` requested video seek to ${seekTimeSeconds} seconds.`);
     youTubePlayer.seekTo(seekTimeSeconds);
 });
 
@@ -119,7 +124,16 @@ document.addEventListener('paste', (event) => {
 });
 
 function onStopVideoRequested(providedUserID) {
+    console.log(`\`${providedUserID}\` requested that video playback be stopped.`);
+
     youTubePlayer.stopVideo();
+
+    if (seekTimeout) {
+        clearTimeout(seekTimeout);
+        seekTimeout = undefined;
+    }
+    lastPlayerTime = -1;
+
     streamingVideoPlayerContainer.classList.add("displayNone");
 }
 
@@ -128,6 +142,7 @@ socket.on("stopVideoRequested", (providedUserID) => {
 });
 
 closeStreamingVideoButton.addEventListener("click", (e) => {
+    console.log(`You requested that video playback be stopped.`);
     socket.emit("stopVideo", myProvidedUserID);
     onStopVideoRequested(myProvidedUserID);
 });
