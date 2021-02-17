@@ -50,15 +50,20 @@
             div.id = participant.sid;
             div.classList.add("participantVideoContainer");
             div.classList.add("participantVideoContainer--other");
+            
+            let videoContainer = document.createElement("div");
+            videoContainer.classList.add("videoContainer");
 
-            participant.on('trackSubscribed', track => trackSubscribed(div, track));
+            participant.on('trackSubscribed', track => trackSubscribed(videoContainer, track));
             participant.on('trackUnsubscribed', trackUnsubscribed);
 
             participant.tracks.forEach(publication => {
                 if (publication.isSubscribed) {
-                    trackSubscribed(div, publication.track);
+                    trackSubscribed(videoContainer, publication.track);
                 }
             });
+            
+            div.appendChild(videoContainer);
 
             providedUserIDsToParticipantVideoContainerMap.set(participant.identity, allVideosContainer.appendChild(div));
             updateVideoContainerPositions();
@@ -93,7 +98,7 @@
         }
 
         const mediaElements = localVideoTrack.detach();
-        mediaElements.forEach(mediaElement => mediaElement.parentNode.remove());
+        mediaElements.forEach(mediaElement => mediaElement.parentNode.parentNode.remove());
 
         if (!myTwilioRoom) {
             return;

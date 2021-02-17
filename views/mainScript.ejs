@@ -93,6 +93,10 @@
 
             let position = currentLocalUserData.position;
 
+            if (!position) {
+                return;
+            }
+
             let leftOffset = linearScale(position.x, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2, 0, window.innerWidth) - (currentParticipantVideoContainer.offsetWidth / 2);
             leftOffset = clamp(leftOffset, 0, window.innerWidth - currentParticipantVideoContainer.offsetWidth);
             currentParticipantVideoContainer.style.left = `${Math.round(leftOffset)}px`;

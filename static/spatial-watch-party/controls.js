@@ -11,8 +11,9 @@ const CONTROLS_CONTAINER_HEIGHT_PX = 60;
 const VIDEO_TITLE_BAR_HEIGHT_PX = 40;
 
 allVideosContainer.addEventListener("mousedown", e => {
-    if (e.target.classList.contains("videoTitleBar") && e.target.parentElement) {
-        videoContainerToMove = e.target.parentElement;
+    let closest = e.target.closest(".participantVideoContainer--mine");
+    if (closest) {
+        videoContainerToMove = closest;
         let videoContainerBoundingClientRect = videoContainerToMove.getBoundingClientRect();
         cursorStartClientPosition.x = e.clientX;
         cursorStartClientPosition.y = e.clientY;
