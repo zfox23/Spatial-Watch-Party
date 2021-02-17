@@ -63,23 +63,23 @@ p {
 }
 
 .toggleInputMuteButton {
-    background-image: url('/images/white-mic.svg');
+    background-image: url('/spatial-watch-party/images/white-mic.svg');
 }
 
 .toggleInputMuteButton--muted {
-    background-image: url('/images/red-mic-with-cross.svg');
+    background-image: url('/spatial-watch-party/images/red-mic-with-cross.svg');
 }
 
 .toggleInputMuteButton--disabled {
-    background-image: url('/images/grey-mic.svg');
+    background-image: url('/spatial-watch-party/images/grey-mic.svg');
 }
 
 .toggleOutputMuteButton {
-    background-image: url('/images/white-headphones.svg');
+    background-image: url('/spatial-watch-party/images/white-headphones.svg');
 }
 
 .toggleOutputMuteButton--muted {
-    background-image: url('/images/red-headphones-with-x.svg');
+    background-image: url('/spatial-watch-party/images/red-headphones-with-x.svg');
 }
 
 .videoURLInput {
