@@ -1,0 +1,277 @@
+<script>
+    let connectDisconnectButton = document.querySelector('.connectDisconnectButton');
+    connectDisconnectButton.addEventListener("click", connectToHiFiAndVideoService);
+    connectDisconnectButton.disabled = false;
+    let toggleInputMuteButton = document.querySelector('.toggleInputMuteButton');
+    toggleInputMuteButton.addEventListener("click", toggleInputMute);
+    let outputAudioEl = document.querySelector(`.outputAudioEl`);
+    let toggleOutputMuteButton = document.querySelector('.toggleOutputMuteButton');
+    toggleOutputMuteButton.addEventListener("click", toggleOutputMute);
+    let allVideosContainer = document.querySelector('.allVideosContainer');
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function linearScale(factor, minInput, maxInput, minOutput, maxOutput) {
+        factor = clamp(factor, minInput, maxInput);
+
+        return minOutput + (maxOutput - minOutput) *
+            (factor - minInput) / (maxInput - minInput);
+    }
+
+    function getRandomFloat(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    let virtualSpaceDimensions = {};
+    function updateVirtualSpaceDimensions() {
+        let numParticipants = allUserData.length;
+        if (!numParticipants) {
+            return;
+        }
+
+        let numRowsAndCols = Math.ceil(Math.sqrt(numParticipants));
+        virtualSpaceDimensions = {
+            "x": numRowsAndCols / 2,
+            "y": numRowsAndCols / 2
+        };
+    }
+
+    const FORWARD_ORIENTATION = new HighFidelityAudio.OrientationEuler3D({ "pitchDegrees": 0, "yawDegrees": 0, "rollDegrees": 0 });
+    function updateMyPosition(targetPosition) {
+        if (!hifiCommunicator) {
+            return;
+        }
+
+        updateVirtualSpaceDimensions();
+
+        let myUserData = allUserData.find((element) => { return element.providedUserID === myProvidedUserID; });
+        if (!myUserData) {
+            console.error(`Couldn't find \`myUserData\` inside \`allUserData\`!`);
+            return;
+        }
+
+        if (!myUserData.position) {
+            myUserData.position = {};
+        }
+
+        if (targetPosition) {
+            Object.assign(myUserData.position, targetPosition);
+        } else {
+            myUserData.position = {
+                "x": Math.round(getRandomFloat(-virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2)),
+                "y": Math.round(getRandomFloat(-virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2))
+            };
+        }
+
+        console.log(`My new position:\n${JSON.stringify(myUserData.position)}`);
+
+        console.log(hifiCommunicator.updateUserDataAndTransmit({
+            position: myUserData.position,
+            orientationEuler: FORWARD_ORIENTATION,
+        }));
+
+        updateVideoContainerPositions();
+    }
+
+    function updateVideoContainerPositions() {
+        updateVirtualSpaceDimensions();
+
+        allUserData.forEach((currentLocalUserData) => {
+            let providedUserID = currentLocalUserData.providedUserID;
+            if (!providedUserIDsToParticipantVideoContainerMap.has(providedUserID)) {
+                return;
+            }
+
+            let isMine = providedUserID === myProvidedUserID;
+            if (isMine && videoContainerToMove) {
+                return;
+            }
+
+            let currentParticipantVideoContainer = providedUserIDsToParticipantVideoContainerMap.get(providedUserID);
+
+            let position = currentLocalUserData.position;
+
+            let leftOffset = linearScale(position.x, -virtualSpaceDimensions.x / 2, virtualSpaceDimensions.x / 2, 0, window.innerWidth) - (currentParticipantVideoContainer.offsetWidth / 2);
+            leftOffset = clamp(leftOffset, 0, window.innerWidth - currentParticipantVideoContainer.offsetWidth);
+            currentParticipantVideoContainer.style.left = `${Math.round(leftOffset)}px`;
+
+            // `-1` term because we want higher `position.y` values to yield a video towards the top of the browser window
+            let topOffset = linearScale(-1 * position.y, -virtualSpaceDimensions.y / 2, virtualSpaceDimensions.y / 2, 0, window.innerHeight) - (currentParticipantVideoContainer.offsetHeight / 2) - CONTROLS_CONTAINER_HEIGHT_PX;
+            topOffset = clamp(topOffset, CONTROLS_CONTAINER_HEIGHT_PX, window.innerHeight - currentParticipantVideoContainer.offsetHeight);
+            currentParticipantVideoContainer.style.top = `${Math.round(topOffset)}px`;
+        });
+    }
+
+    function onNewHiFiUserDataReceived(receivedHiFiAudioAPIDataArray) {
+        let mustUpdateCanvas = false;
+
+        for (let i = 0; i < receivedHiFiAudioAPIDataArray.length; i++) {
+            let currentDataFromServer = receivedHiFiAudioAPIDataArray[i];
+            let currentProvidedUserID = currentDataFromServer.providedUserID;
+            let currentLocalUserData = allUserData.find((element) => { return element.providedUserID === currentProvidedUserID; })
+            if (currentLocalUserData) {
+                if (currentDataFromServer.position) {
+                    if (!currentLocalUserData.position) {
+                        currentLocalUserData.position = new HighFidelityAudio.Point3D();
+                    }
+
+                    if (typeof (currentDataFromServer.position.x) === "number") {
+                        currentLocalUserData.position.x = currentDataFromServer.position.x;
+                        mustUpdateCanvas = true;
+                    }
+                    if (typeof (currentDataFromServer.position.y) === "number") {
+                        currentLocalUserData.position.y = currentDataFromServer.position.y;
+                        mustUpdateCanvas = true;
+                    }
+                    if (typeof (currentDataFromServer.position.z) === "number") {
+                        currentLocalUserData.position.z = currentDataFromServer.position.z;
+                        mustUpdateCanvas = true;
+                    }
+                }
+            } else {
+                console.log(`New HiFi User! Provided ID: ${currentProvidedUserID}`);
+                allUserData.push(new WatchPartyUserData({
+                    providedUserID: currentProvidedUserID
+                }));
+                mustUpdateCanvas = true;
+            }
+        }
+
+        if (mustUpdateCanvas) {
+            updateVideoContainerPositions();
+        }
+    }
+
+    async function connectToHiFiAndVideoService() {
+        await connectToHiFi();
+        await connectToVideoService();
+    }
+
+    class WatchPartyUserData {
+        constructor(data) {
+            this.providedUserID = data.providedUserID;
+            this.position = data.position;
+        }
+    }
+
+    let hifiCommunicator;
+    let myProvidedUserID;
+    let allUserData = [];
+    async function connectToHiFi() {
+        // Disable the Connect button after the user clicks it so we don't double-connect.
+        connectDisconnectButton.disabled = true;
+        connectDisconnectButton.innerHTML = `Connecting...`;
+        toggleInputMuteButton.disabled = true;
+
+        // Get the audio media stream associated with the user's default audio input device.
+        let audioMediaStream;
+        try {
+            audioMediaStream = await navigator.mediaDevices.getUserMedia({ audio: HighFidelityAudio.getBestAudioConstraints(), video: false });
+        } catch (e) {
+            return;
+        }
+
+        // Set up the initial data for our user.
+        // They'll be standing at the origin, facing "forward".
+        let initialHiFiAudioAPIData = new HighFidelityAudio.HiFiAudioAPIData({
+            position: new HighFidelityAudio.Point3D({ "x": 0, "y": 0, "z": 0 }),
+            orientationEuler: new HighFidelityAudio.OrientationEuler3D({ "pitch": 0, "yaw": 0, "roll": 0 })
+        });
+
+        HighFidelityAudio.HiFiLogger.setHiFiLogLevel(HighFidelityAudio.HiFiLogLevel.Debug);
+
+        // Set up our `HiFiCommunicator` object, supplying our media stream and initial user data.
+        hifiCommunicator = new HighFidelityAudio.HiFiCommunicator({
+            initialHiFiAudioAPIData: initialHiFiAudioAPIData
+        });
+        await hifiCommunicator.setInputAudioMediaStream(audioMediaStream);
+
+        allUserData = [];
+
+        // Connect to the HiFi Audio API server!
+        try {
+            let response = await hifiCommunicator.connectToHiFiAudioAPIServer('<%- hiFiJWT %>');
+            myProvidedUserID = response.audionetInitResponse.user_id;
+            allUserData.push(new WatchPartyUserData({
+                "providedUserID": myProvidedUserID
+            }));
+            console.log(`My Provided User ID: ${myProvidedUserID}`);
+        } catch (e) {
+            console.error(`Error connecting to High Fidelity:\n${JSON.stringify(e)}`);
+            connectDisconnectButton.disabled = false;
+            toggleInputMuteButton.disabled = true;
+            connectDisconnectButton.innerHTML = `Connection error. Retry?`;
+            return;
+        }
+
+        updateMyPosition();
+
+        // Show the user that we're connected by changing the text on the button.
+        connectDisconnectButton.removeEventListener("click", connectToHiFiAndVideoService);
+        connectDisconnectButton.addEventListener("click", disconnectFromHiFiAndVideoService);
+        connectDisconnectButton.innerHTML = `Disconnect`;
+        connectDisconnectButton.disabled = false;
+        toggleInputMuteButton.disabled = false;
+
+        // Set the `srcObject` on our `audio` DOM element to the final, mixed audio stream from the High Fidelity Audio API Server.
+        outputAudioEl.srcObject = hifiCommunicator.getOutputAudioMediaStream();
+        // We explicitly call `play()` here because certain browsers won't play the newly-set stream automatically.
+        outputAudioEl.play();
+
+        // Set up a new User Data Subscription to get User Data updates from the server.
+        let newUserDataSubscription = new HighFidelityAudio.UserDataSubscription({
+            // Setting `providedUserID` to `null` (or omitting it) means we will get data updates from **all** connected Users, including ourselves.
+            "providedUserID": null,
+            // There are other components we could subscribe to here, but we're only subscribing to Volume data updates.
+            "components": [HighFidelityAudio.AvailableUserDataSubscriptionComponents.Position, HighFidelityAudio.AvailableUserDataSubscriptionComponents.OrientationEuler],
+            // See above for the definition of `onNewHiFiUserDataReceived`.
+            "callback": onNewHiFiUserDataReceived
+        });
+        // Actually add the newly-constructed Data Subscription to the list of our Data Subscriptions on our `HiFiCommunicator`.
+        hifiCommunicator.addUserDataSubscription(newUserDataSubscription);
+    }
+
+    let isMuted = false;
+    async function toggleInputMute() {
+        if (!hifiCommunicator) {
+            return;
+        }
+        if (await hifiCommunicator.setInputAudioMuted(!isMuted)) {
+            isMuted = !isMuted;
+            toggleInputMuteButton.innerHTML = `Toggle Mute (currently ${isMuted ? "muted" : "unmuted"})`;
+        }
+    }
+
+    function toggleOutputMute() {
+        outputAudioEl.muted = !outputAudioEl.muted;
+        console.log(`Set output mute status to \`${outputAudioEl.muted}\``);
+        toggleOutputMuteButton.innerHTML = `Toggle Output Mute (currently ${outputAudioEl.muted ? "muted" : "unmuted"})`;
+    }
+
+    function disconnectFromHiFiAndVideoService() {
+        disconnectFromVideoService();
+        disconnectFromHiFi();
+    }
+
+    function disconnectFromHiFi() {
+        console.log(`Disconnecting from High Fidelity Audio API Servers...`);
+
+        connectDisconnectButton.removeEventListener("click", disconnectFromHiFiAndVideoService);
+        connectDisconnectButton.addEventListener("click", connectToHiFiAndVideoService);
+        connectDisconnectButton.disabled = false;
+        connectDisconnectButton.innerHTML = `Connect`;
+
+        toggleInputMuteButton.disabled = true;
+        isMuted = false;
+
+        if (hifiCommunicator) {
+            hifiCommunicator.disconnectFromHiFiAudioAPIServer();
+        }
+        hifiCommunicator = null;
+    }
+
+    window.onresize = updateVideoContainerPositions;
+    window.onbeforeunload = disconnectFromHiFiAndVideoService;
+</script>

@@ -1,0 +1,26 @@
+{
+  "name": "spatial-watch-party",
+  "version": "1.0.0",
+  "description": "A Web application that lets users watch videos together while chatting in a virtual 3D environment with spatial audio by High Fidelity.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zfox23/Spatial-Watch-Party.git"
+  },
+  "author": "Zach Fox",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zfox23/Spatial-Watch-Party/issues"
+  },
+  "homepage": "https://github.com/zfox23/Spatial-Watch-Party#readme",
+  "dependencies": {
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "jose": "^3.6.2",
+    "node-fetch": "^2.6.1",
+    "twilio": "^3.56.0"
+  }
+}
