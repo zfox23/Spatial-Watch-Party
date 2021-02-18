@@ -3,19 +3,19 @@ var ctx = mainCanvas.getContext("2d");
 
 const CIRCLE_INFO = [
     {
-        radius: 0.25,
+        radius: 0.5,
         color: "#DFC2F2",
     },
     {
-        radius: 0.5,
+        radius: 1.0,
         color: "#CFB3CD",
     },
     {
-        radius: 1.0,
+        radius: 2.5,
         color: "#888098",
     },
     {
-        radius: 2.0,
+        radius: 5.0,
         color: "#344055",
     },
 ];

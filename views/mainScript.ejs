@@ -33,8 +33,8 @@
 
         let numRowsAndCols = Math.ceil(Math.sqrt(numParticipants));
         virtualSpaceDimensions = {
-            "x": numRowsAndCols / 2,
-            "y": numRowsAndCols / 2
+            "x": numRowsAndCols * 2,
+            "y": numRowsAndCols * 2
         };
 
         window.requestAnimationFrame(updateCanvas);
@@ -206,7 +206,8 @@
 
         // Set up our `HiFiCommunicator` object, supplying our media stream and initial user data.
         hifiCommunicator = new HighFidelityAudio.HiFiCommunicator({
-            initialHiFiAudioAPIData: initialHiFiAudioAPIData
+            initialHiFiAudioAPIData: initialHiFiAudioAPIData,
+            transmitRateLimitTimeoutMS: 10,
         });
         await hifiCommunicator.setInputAudioMediaStream(audioMediaStream);
 
